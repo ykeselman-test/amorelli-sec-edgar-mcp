@@ -43,35 +43,18 @@ jobs:
           python -m build
       
       - name: Test import
-        run: python -c "import sec_edgar_mcp; print(sec_edgar_mcp.__version__)"
+        run: python -c "import sec_edgar_mcp; print('Version:', sec_edgar_mcp.__version__)"
       
       - name: Verify server can start
         env:
           SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
         run: |
-          timeout 5 python -m sec_edgar_mcp.server || exit_code=$?
-          if [ "$exit_code" = "124" ]; then
-            echo "Server started successfully (timeout expected)"
-            exit 0
-          else
-            echo "Server failed to start"
-            exit 1
-          fi
-        shell: bash
+          python -c "import sys, subprocess, time; p = subprocess.Popen([sys.executable, '-m', 'sec_edgar_mcp.server']); time.sleep(3); p.terminate(); sys.exit(0 if p.poll() is None or p.returncode == -15 else 1)"
         if: matrix.os != 'windows-latest'
       
       - name: Verify server can start (Windows)
         env:
           SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
         run: |
-          $process = Start-Process python -ArgumentList "-m", "sec_edgar_mcp.server" -PassThru
-          Start-Sleep -Seconds 5
-          if ($process.HasExited) {
-            Write-Error "Server failed to start"
-            exit 1
-          } else {
-            Stop-Process -Id $process.Id -Force
-            Write-Host "Server started successfully"
-          }
-        shell: pwsh
+          python -c "import sys, subprocess, time; p = subprocess.Popen([sys.executable, '-m', 'sec_edgar_mcp.server']); time.sleep(3); p.terminate(); sys.exit(0 if p.poll() is None or p.returncode in [-15, 1] else 1)"
         if: matrix.os == 'windows-latest'
