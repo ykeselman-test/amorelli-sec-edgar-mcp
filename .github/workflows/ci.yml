@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      
+      - name: Lint with ruff
+        run: |
+          ruff check sec_edgar_mcp
+          ruff format --check sec_edgar_mcp
+      
+      - name: Type check with mypy
+        run: mypy sec_edgar_mcp
+      
+      - name: Build package
+        run: |
+          pip install build
+          python -m build
+      
+      - name: Test import
+        run: python -c "import sec_edgar_mcp; print(sec_edgar_mcp.__version__)"
+      
+      - name: Verify server can start
+        env:
+          SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
+        run: |
+          timeout 5 python -m sec_edgar_mcp.server || exit_code=$?
+          if [ "$exit_code" = "124" ]; then
+            echo "Server started successfully (timeout expected)"
+            exit 0
+          else
+            echo "Server failed to start"
+            exit 1
+          fi
+        shell: bash
+        if: matrix.os != 'windows-latest'
+      
+      - name: Verify server can start (Windows)
+        env:
+          SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
+        run: |
+          $process = Start-Process python -ArgumentList "-m", "sec_edgar_mcp.server" -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) {
+            Write-Error "Server failed to start"
+            exit 1
+          } else {
+            Stop-Process -Id $process.Id -Force
+            Write-Host "Server started successfully"
+          }
+        shell: pwsh
+        if: matrix.os == 'windows-latest'
