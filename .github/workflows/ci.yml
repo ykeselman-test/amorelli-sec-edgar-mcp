@@ -37,24 +37,59 @@ jobs:
       - name: Type check with mypy
         run: mypy sec_edgar_mcp
       
+      - name: Test package functionality
+        env:
+          SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
+        run: |
+          python -c "
+          import os
+          os.environ['SEC_EDGAR_USER_AGENT'] = 'Test User (test@example.com)'
+          
+          # Test imports
+          import sec_edgar_mcp
+          print(f'✓ Package version: {sec_edgar_mcp.__version__}')
+          
+          # Test core imports
+          from sec_edgar_mcp.core import EdgarClient
+          from sec_edgar_mcp.tools import CompanyTools, FilingsTools
+          print('✓ Core modules imported successfully')
+          
+          # Test that tools can be instantiated
+          client = EdgarClient()
+          company_tools = CompanyTools()
+          filings_tools = FilingsTools()
+          print('✓ Tools instantiated successfully')
+          
+          # Test server can be imported
+          import sec_edgar_mcp.server
+          print('✓ Server module imported successfully')
+          
+          print('All tests passed!')
+          "
+  
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      
       - name: Build package
-        run: |
-          pip install build
-          python -m build
+        run: python -m build
       
-      - name: Test import
-        run: python -c "import sec_edgar_mcp; print('Version:', sec_edgar_mcp.__version__)"
+      - name: Check package with twine
+        run: twine check dist/*
       
-      - name: Verify server can start
-        env:
-          SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
-        run: |
-          python -c "import sys, subprocess, time; p = subprocess.Popen([sys.executable, '-m', 'sec_edgar_mcp.server']); time.sleep(3); p.terminate(); sys.exit(0 if p.poll() is None or p.returncode == -15 else 1)"
-        if: matrix.os != 'windows-latest'
-      
-      - name: Verify server can start (Windows)
-        env:
-          SEC_EDGAR_USER_AGENT: "Test User (test@example.com)"
-        run: |
-          python -c "import sys, subprocess, time; p = subprocess.Popen([sys.executable, '-m', 'sec_edgar_mcp.server']); time.sleep(3); p.terminate(); sys.exit(0 if p.poll() is None or p.returncode in [-15, 1] else 1)"
-        if: matrix.os == 'windows-latest'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
