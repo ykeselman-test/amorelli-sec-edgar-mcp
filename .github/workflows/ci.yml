@@ -47,22 +47,22 @@ jobs:
           
           # Test imports
           import sec_edgar_mcp
-          print(f'✓ Package version: {sec_edgar_mcp.__version__}')
+          print(f'[OK] Package version: {sec_edgar_mcp.__version__}')
           
           # Test core imports
           from sec_edgar_mcp.core import EdgarClient
           from sec_edgar_mcp.tools import CompanyTools, FilingsTools
-          print('✓ Core modules imported successfully')
+          print('[OK] Core modules imported successfully')
           
           # Test that tools can be instantiated
           client = EdgarClient()
           company_tools = CompanyTools()
           filings_tools = FilingsTools()
-          print('✓ Tools instantiated successfully')
+          print('[OK] Tools instantiated successfully')
           
           # Test server can be imported
           import sec_edgar_mcp.server
-          print('✓ Server module imported successfully')
+          print('[OK] Server module imported successfully')
           
           print('All tests passed!')
           "
